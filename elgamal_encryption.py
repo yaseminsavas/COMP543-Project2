@@ -160,7 +160,7 @@ while True:
     print("CHECKING THE SERVER...")
     sleep(5)
 
-    if os.path.getsize('server.txt') == 0 and chat_count == 0:
+    if os.path.getsize('server.txt') == 0 or chat_count == 0:
 
         print("NO INCOMING MESSAGES...")
         plaintext = input("SEND A MESSAGE: ")
