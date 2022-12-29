@@ -62,13 +62,14 @@ def primality_check(n):
 
 # helper function for cyclic group generator (found online)
 def cyclic_generator(n):
-    s = set(range(1, n))
     results = []
-    for a in s:
+    for a in set(range(1, n)):
         g = set()
-        for x in s:
+        for x in set(range(1, n)):
             g.add((a**x) % n)
-        if g == s:
+            if len(g) == 100:  # I added this statement for simplicity...
+                break
+        if g == set(range(1, n)):
             results.append(a)
     return results
 
@@ -77,22 +78,23 @@ def cyclic_generator(n):
 def elgamal_key_generator():
 
     # 160 bits lucky primes
-    a, b = random.randint(2 ** 159, 2 ** 160 - 1), random.randint(2 ** 159, 2 ** 160 - 1)
+    a, b = random.randint(2 ** 1023, 2 ** 1024 - 1), random.randint(2 ** 1023, 2 ** 1024 - 1)
     while not primality_check(a) or primality_check(b):
-        a, b = random.randint(2 ** 159, 2 ** 160 - 1), random.randint(2 ** 159, 2 ** 160 - 1)
+        a, b = random.randint(2 ** 1023, 2 ** 1024 - 1), random.randint(2 ** 1023, 2 ** 1024 - 1)
 
-    q = a * b  # large prime
+    q = a * b  # a very large prime
+    q = 79
     b = random.randint(2, q)
-    g = 2  # random.randint(2, q)
+    g = random.randint(2, q)
 
     while math.gcd(b, g) != 1:
         b = random.randint(2, q)
-        g = 2  # random.randint(2, 19)
+        g = random.randint(2, q)
         if math.gcd(b, g) == 1:
             break
 
     start_time = time.time()
-    F_q = cyclic_generator(q) # TODO: NEED TO FIX THIS...
+    F_q = cyclic_generator(q)  # TODO: NEED TO FIX THIS...
     end_time = time.time()
 
     print("Seconds passed: ", end_time - start_time)
