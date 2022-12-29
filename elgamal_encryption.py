@@ -7,6 +7,7 @@ import random
 import math
 import os
 from time import sleep
+import time
 
 
 # helper function for ascii conversion
@@ -18,9 +19,9 @@ def ascii_conversion(text):
     return ascii_txt
 
 
-# helper function for prime number selection
+# helper function for a prime number selection using the Miller-Robin primality test.
 # I took it from this website: https://rosettacode.org/wiki/Miller–Rabin_primality_test
-def is_Prime(n):
+def primality_check(n):
     """
     Miller-Rabin primality test.
 
@@ -72,34 +73,29 @@ def cyclic_generator(n):
     return results
 
 
-"""
-Bob generates public and private keys:
-a. Bob chooses a large number q and a cyclic group F_q
-b. Bob chooses a random generator g for Fq and an element b such that gcd(b,q) = 1
-c. Bob computes h = g^b
-d. Bob publishes F, h, q and g, retains b as private key
-"""
-
-
+# Public key generator (as well as the private key of one side)
 def elgamal_key_generator():
 
-    print("FINDING A 1024-BIT PRIME NUMBER...")
-    primality = False
-    while primality is False:
-        q = random.randrange(2**1023+1, 2**1024-1)
-        if is_Prime(q):
-            primality = True
+    # 160 bits lucky primes
+    a, b = random.randint(2 ** 159, 2 ** 160 - 1), random.randint(2 ** 159, 2 ** 160 - 1)
+    while not primality_check(a) or primality_check(b):
+        a, b = random.randint(2 ** 159, 2 ** 160 - 1), random.randint(2 ** 159, 2 ** 160 - 1)
 
-    print("GENERATING THE CYCLIC GROUP...")
-    F_q = cyclic_generator(q)
+    q = a * b  # large prime
     b = random.randint(2, q)
-    g = random.choice(F_q)
+    g = 2  # random.randint(2, q)
 
     while math.gcd(b, g) != 1:
         b = random.randint(2, q)
-        g = random.choice(F_q)
+        g = 2  # random.randint(2, 19)
         if math.gcd(b, g) == 1:
             break
+
+    start_time = time.time()
+    F_q = cyclic_generator(q) # TODO: NEED TO FIX THIS...
+    end_time = time.time()
+
+    print("Seconds passed: ", end_time - start_time)
 
     h = pow(g, b)
     public_key = (F_q, h, q, g)
@@ -113,22 +109,21 @@ def elgamal_key_generator():
     return public_key
 
 
-"""
-2. Alice encrypts the message using Bob’s public key:
-a. Alice chooses k from cyclic group F such that gcd(a, q) = 1
-b. Alice computes p = g^k and s = h^k= g^(a*b)
-c. Alice encrypts M with s
-d. Alice publishes (p, M x s) = (gk , M x s)
-"""
+# Giving the public key, the other end generates their own private key
+def other_side_key_generator():
+    with open('server.txt', 'r') as f:
+        lines = f.readlines()
 
+    F_q, h, q, g = lines[0][2:], int(lines[1][2:]), int(lines[2][2:]), int(lines[3][2:])
+    F_updated = F_q[1:-2].split(", ")
+    F_int = []
+    for i in F_updated:
+        F_int.append(int(i))
 
-def elgamal_encryption(public_key, plaintext):
-
-    F_q, h, q, g = public_key
-    k = random.choice(F_q)
+    k = random.choice(F_int)
 
     while math.gcd(k, g) != 1:
-        k = random.choice(F_q)
+        k = random.choice(F_int)
         if math.gcd(k, g) == 1:
             break
 
@@ -137,25 +132,32 @@ def elgamal_encryption(public_key, plaintext):
         f.write(str(k))
         f.close()
 
+    # deleting the server contents after obtaining the public key contents
+    open('server.txt', 'w').close()
+    print("OTHER END GENERATED THEIR PRIVATE KEY AND THE SERVER IS CLEANED...")
+
+
+# ElGamal Encryption Function
+def elgamal_encryption(public_key, plaintext):
+
+    # Obtaining private key (Alice)
+    F_q, h, q, g = public_key
+    with open('private_key_alice.txt', 'r') as f:
+        k = int(f.readlines()[0])
+        f.close()
+
     p = pow(g, k)
     s = pow(h, k)
-
     ascii_plaintext = list(ascii_conversion(plaintext))
-
     ciphertext = []
+
     for i in ascii_plaintext:
         ciphertext.append(str((s * int(i))))
 
     return p, ciphertext
 
 
-"""
-3. Bob decrypts the message:
-a. Bob calculates s’ = p^b = g^ab
-b. Bob decrypts M x s with s’ and obtains M.
-"""
-
-
+# ElGamal Decryption Function
 def elgamal_decryption(p, ciphertext):
 
     with open('private_key_bob.txt', 'r') as f:
@@ -163,13 +165,14 @@ def elgamal_decryption(p, ciphertext):
         f.close()
 
     s_ = pow(p, private_key)
-
     plaintext = []
+
     for i in ciphertext:
         plaintext.append(chr(int(int(i) / s_)))
     return plaintext
 
 
+# Write public key and ciphertext to the server.txt
 def write_to_server(public_key, ciphertext, p):
 
     msg_length = len(ciphertext)
@@ -198,36 +201,40 @@ def write_to_server(public_key, ciphertext, p):
     f.close()
 
 
-chat_count = 0
-while True:
+def server_initialization():
+    print("COMMUNICATION STARTED, GENERATING THE SERVER...")
 
-    # initializing the chat server, sending the first msg
-    if os.path.exists("server.txt") is False and chat_count == 0:
-        print("COMMUNICATION STARTED, GENERATING THE SERVER...")
-
-        public_key = elgamal_key_generator()
+    try:
         with open('server.txt', 'x') as f:
             f.close()
+    except:
+        print("SERVER ALREADY EXISTS.")
 
-        plaintext = input("SEND A MESSAGE: ")
-        p, ciphertext = elgamal_encryption(public_key, plaintext)
+    public_key = elgamal_key_generator()
+    F, H, Q, G = str("F:" + str(public_key[0])), str("H:" + str(public_key[1])), \
+                 str("Q:" + str(public_key[2])), str("G:" + str(public_key[3]))
 
-        ctext = ""
-        for i in ciphertext:
-            ctext += str(i)
-        write_to_server(public_key, ciphertext, p)
-        chat_count += 1
-        print("MESSAGE SENT...")
+    f = open("server.txt", "w")
+    f.write(F + "\n")
+    f.write(H + "\n")
+    f.write(Q + "\n")
+    f.write(G + "\n")
+    f.close()
+    print("PUBLIC KEY SENT TO THE OTHER END...")
+    return public_key
 
-        print("CHECKING THE SERVER FOR AN INCOMING MESSAGE...")
-        sleep(5)
 
-    # sending the first msg in an existing server
-    elif os.path.exists("server.txt") is True and os.path.getsize('server.txt') == 0 and chat_count == 0:
+public_key = server_initialization()
+other_side_key_generator()
+
+chat_count = 0
+sleep(5)  # waiting 5 seconds for input
+while True:
+    # sending the first message in an existing server
+    if os.path.getsize('server.txt') == 0:
 
         print("NO INCOMING MESSAGES...")
         plaintext = input("SEND A MESSAGE: ")
-        public_key = elgamal_key_generator()
         p, ciphertext = elgamal_encryption(public_key, plaintext)
 
         ctext = ""
@@ -236,12 +243,11 @@ while True:
         write_to_server(public_key, ciphertext, p)
         chat_count += 1
         print("MESSAGE SENT...")
-
         print("CHECKING THE SERVER FOR AN INCOMING MESSAGE...")
         sleep(5)
 
     # communication in later steps
-    elif os.path.exists("server.txt") is True and os.path.getsize('server.txt') > 0:
+    elif os.path.getsize('server.txt') > 0:
 
         with open('server.txt', 'r') as f:
             lines = f.readlines()
@@ -271,31 +277,8 @@ while True:
         ctext = ""
         for i in ciphertext:
             ctext += str(i)
+
         write_to_server(public_key, ciphertext, p)
-
-        print("CHECKING THE SERVER FOR AN INCOMING MESSAGE...")
-        sleep(5)
-
-    elif os.path.exists("server.txt") is True and os.path.getsize('server.txt') == 0 and chat_count > 0:
-
-        print("NO INCOMING MESSAGES...")
-        plaintext = input("SEND A MESSAGE: ")
-        try:
-            p, ciphertext = elgamal_encryption(public_key, plaintext)
-        except:
-            public_key = elgamal_key_generator()
-            p, ciphertext = elgamal_encryption(public_key, plaintext)
-
-        ctext = ""
-        for i in ciphertext:
-            ctext += str(i)
-        write_to_server(public_key, ciphertext, p)
-        chat_count += 1
         print("MESSAGE SENT...")
-
         print("CHECKING THE SERVER FOR AN INCOMING MESSAGE...")
         sleep(5)
-
-    else:
-        print("AN ERROR OCCURRED. DELETE THE SERVER FILE & RESTART")
-        break
