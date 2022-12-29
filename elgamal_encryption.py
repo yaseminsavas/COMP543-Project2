@@ -67,8 +67,6 @@ def cyclic_generator(n):
         g = set()
         for x in set(range(1, n)):
             g.add((a**x) % n)
-            if len(g) == 100:  # I added this statement for simplicity...
-                break
         if g == set(range(1, n)):
             results.append(a)
     return results
@@ -83,7 +81,7 @@ def elgamal_key_generator():
         a, b = random.randint(2 ** 1023, 2 ** 1024 - 1), random.randint(2 ** 1023, 2 ** 1024 - 1)
 
     q = a * b  # a very large prime
-    q = 79
+    q = 79  # I tried a really small prime number for simplicity
     b = random.randint(2, q)
     g = random.randint(2, q)
 
@@ -93,12 +91,7 @@ def elgamal_key_generator():
         if math.gcd(b, g) == 1:
             break
 
-    start_time = time.time()
     F_q = cyclic_generator(q)  # TODO: NEED TO FIX THIS...
-    end_time = time.time()
-
-    print("Seconds passed: ", end_time - start_time)
-
     h = pow(g, b)
     public_key = (F_q, h, q, g)
 
@@ -244,9 +237,6 @@ while True:
             ctext += str(i)
         write_to_server(public_key, ciphertext, p)
         chat_count += 1
-        print("MESSAGE SENT...")
-        print("CHECKING THE SERVER FOR AN INCOMING MESSAGE...")
-        sleep(5)
 
     # communication in later steps
     elif os.path.getsize('server.txt') > 0:
@@ -281,6 +271,7 @@ while True:
             ctext += str(i)
 
         write_to_server(public_key, ciphertext, p)
-        print("MESSAGE SENT...")
-        print("CHECKING THE SERVER FOR AN INCOMING MESSAGE...")
-        sleep(5)
+
+    print("MESSAGE SENT...")
+    print("CHECKING THE SERVER FOR AN INCOMING MESSAGE...")
+    sleep(5)
