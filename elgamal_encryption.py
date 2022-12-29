@@ -239,7 +239,11 @@ while True:
 
         print("NO INCOMING MESSAGES...")
         plaintext = input("SEND A MESSAGE: ")
-        p, ciphertext = elgamal_encryption(public_key, plaintext)
+        try:
+            p, ciphertext = elgamal_encryption(public_key, plaintext)
+        except:
+            public_key = elgamal_key_generator()
+            p, ciphertext = elgamal_encryption(public_key, plaintext)
 
         ctext = ""
         for i in ciphertext:
