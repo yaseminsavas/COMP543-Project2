@@ -58,44 +58,25 @@ def primality_check(n):
     return True
 
 
-# helper function for generating a list of the cyclic group generator
-def cyclic_generator(n):
-    results = []
-    for a in set(range(1, n)):
-        g = set()
-        for x in set(range(1, n)):
-            g.add((a**x) % n)
-        if g == set(range(1, n)):
-            results.append(a)
-    return results
-
-
 # Public key generator (as well as the private key of one side)
 def elgamal_key_generator():
 
-    # TODO: Make this work for very large primes!
-    # 160 bits lucky primes
-    #a, b = random.randint(2 ** 1023, 2 ** 1024 - 1), random.randint(2 ** 1023, 2 ** 1024 - 1)
-    #while not primality_check(a) or primality_check(b):
-    #    a, b = random.randint(2 ** 1023, 2 ** 1024 - 1), random.randint(2 ** 1023, 2 ** 1024 - 1)
-    #q = a * b  # a very large prime
-    q = 79  # I tried a really small prime number for simplicity
+    q = random.randint(2 ** 1023, 2 ** 1024 - 1)
+    while not primality_check(q):
+        q = random.randint(2 ** 1023, 2 ** 1024 - 1)
+
     b = random.randint(2, q)
-    g = random.choice(cyclic_generator(q))
+    generators = [random.randint(2, q)]
+    g = random.choice(generators)
 
     while math.gcd(b, g) != 1:
         b = random.randint(2, q)
-        g = random.choice(cyclic_generator(q))
+        g = random.choice(generators)
         if math.gcd(b, g) == 1:
             break
 
-    h = pow(g, b)
-
-    F_q = []
-    for i in range(q):
-        F_q.append(pow(g, i, q))
-
-    public_key = (F_q, h, q, g)
+    h = pow(g, b, q)
+    public_key = (h, q, g)
 
     # Retaining private key (Bob)
     with open('private_key_bob.txt', 'w') as f:
@@ -111,16 +92,12 @@ def other_side_key_generator():
     with open('server.txt', 'r') as f:
         lines = f.readlines()
 
-    F_q, h, q, g = lines[0][2:], int(lines[1][2:]), int(lines[2][2:]), int(lines[3][2:])
-    F_updated = F_q[1:-2].split(", ")
-    F_int = []
-    for i in F_updated:
-        F_int.append(int(i))
+    h, q, g = lines[0][2:], int(lines[1][2:]), int(lines[2][2:])
 
-    k = random.choice(F_int)
+    k = random.randint(2, int(h))
 
     while math.gcd(k, g) != 1:
-        k = random.choice(F_int)
+        k = random.randint(2, int(h))
         if math.gcd(k, g) == 1:
             break
 
@@ -138,13 +115,13 @@ def other_side_key_generator():
 def elgamal_encryption(public_key, plaintext):
 
     # Obtaining private key (Alice)
-    F_q, h, q, g = public_key
+    h, q, g = public_key
     with open('private_key_alice.txt', 'r') as f:
         k = int(f.readlines()[0])
         f.close()
 
-    p = pow(g, k)
-    s = pow(h, k)
+    p = pow(g, k, q)
+    s = pow(h, k, q)
     ascii_plaintext = list(ascii_conversion(plaintext))
     ciphertext = []
 
@@ -155,13 +132,13 @@ def elgamal_encryption(public_key, plaintext):
 
 
 # ElGamal Decryption Function
-def elgamal_decryption(p, ciphertext):
+def elgamal_decryption(p, q, ciphertext):
 
     with open('private_key_bob.txt', 'r') as f:
         private_key = int(f.readlines()[0])
         f.close()
 
-    s_ = pow(p, private_key)
+    s_ = pow(p, private_key, q)
     plaintext = []
 
     for i in ciphertext:
@@ -181,15 +158,13 @@ def write_to_server(public_key, ciphertext, p):
         else:
             cipher += str(ciphertext[i])
 
-    F = str("F:" + str(public_key[0]))
-    H = str("H:" + str(public_key[1]))
-    Q = str("Q:" + str(public_key[2]))
-    G = str("G:" + str(public_key[3]))
+    H = str("H:" + str(public_key[0]))
+    Q = str("Q:" + str(public_key[1]))
+    G = str("G:" + str(public_key[2]))
     C = str("C:" + str(cipher))
     P = str("p:" + str(p))
 
     f = open("server.txt", "w")
-    f.write(F + "\n")
     f.write(H + "\n")
     f.write(Q + "\n")
     f.write(G + "\n")
@@ -208,11 +183,9 @@ def server_initialization():
         print("SERVER ALREADY EXISTS.")
 
     public_key = elgamal_key_generator()
-    F, H, Q, G = str("F:" + str(public_key[0])), str("H:" + str(public_key[1])), \
-                 str("Q:" + str(public_key[2])), str("G:" + str(public_key[3]))
+    H, Q, G = str("F:" + str(public_key[0])), str("H:" + str(public_key[1])), str("Q:" + str(public_key[2]))
 
     f = open("server.txt", "w")
-    f.write(F + "\n")
     f.write(H + "\n")
     f.write(Q + "\n")
     f.write(G + "\n")
@@ -224,7 +197,6 @@ def server_initialization():
 public_key = server_initialization()
 other_side_key_generator()
 
-chat_count = 0
 sleep(5)  # waiting 5 seconds for input
 while True:
     # sending the first message in an existing server
@@ -238,7 +210,6 @@ while True:
         for i in ciphertext:
             ctext += str(i)
         write_to_server(public_key, ciphertext, p)
-        chat_count += 1
 
     # communication in later steps
     elif os.path.getsize('server.txt') > 0:
@@ -246,9 +217,9 @@ while True:
         with open('server.txt', 'r') as f:
             lines = f.readlines()
 
-        F, H, Q, G, ciphertext, p = lines[0][2:], lines[1][2:], lines[2][2:], lines[3][2:], lines[4][2:], lines[5][2:]
+        H, Q, G, ciphertext, p = lines[0][2:], lines[1][2:], lines[2][2:], lines[3][2:], lines[4][2:]
         ciphertext = ciphertext.split(",")
-        plaintext = elgamal_decryption(int(p), ciphertext)
+        plaintext = elgamal_decryption(int(p), int(Q), ciphertext)
 
         str_ptext = ""
         for i in plaintext:
@@ -256,16 +227,11 @@ while True:
         print("INCOMING MESSAGE:", ascii(str_ptext))
 
         # deleting the server contents after decrypting an incoming message.
-        open('server.txt', 'w').close()
+        #open('server.txt', 'w').close()
 
         plaintext = input("ANSWER THE MESSAGE: ")
 
-        F_updated = F[1:-2].split(", ")
-        F_int = []
-        for i in F_updated:
-            F_int.append(int(i))
-
-        public_key = (F_int, int(H), int(Q), int(G))
+        public_key = (int(H), int(Q), int(G))
         p, ciphertext = elgamal_encryption(public_key, plaintext)
 
         ctext = ""
