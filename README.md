@@ -11,4 +11,4 @@ III. Encyption & Decryption - no problem
 
 IV. A server txt file to mimic a chat - no problem
 
-
+V. Encoding & Decoding messages as base64 - no problem
