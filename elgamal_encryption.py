@@ -23,7 +23,6 @@ def ascii_conversion(text):
 def primality_check(n):
     """
     Miller-Rabin primality test.
-
     A return value of False means n is certainly not prime. A return value of
     True means n is very likely a prime.
     """
@@ -59,7 +58,7 @@ def primality_check(n):
     return True
 
 
-# helper function for cyclic group generator (found online)
+# helper function for generating a list of the cyclic group generator
 def cyclic_generator(n):
     results = []
     for a in set(range(1, n)):
@@ -74,24 +73,28 @@ def cyclic_generator(n):
 # Public key generator (as well as the private key of one side)
 def elgamal_key_generator():
 
+    # TODO: Make this work for very large primes!
     # 160 bits lucky primes
-    a, b = random.randint(2 ** 1023, 2 ** 1024 - 1), random.randint(2 ** 1023, 2 ** 1024 - 1)
-    while not primality_check(a) or primality_check(b):
-        a, b = random.randint(2 ** 1023, 2 ** 1024 - 1), random.randint(2 ** 1023, 2 ** 1024 - 1)
-
-    q = a * b  # a very large prime
-    #q = 79  # I tried a really small prime number for simplicity
+    #a, b = random.randint(2 ** 1023, 2 ** 1024 - 1), random.randint(2 ** 1023, 2 ** 1024 - 1)
+    #while not primality_check(a) or primality_check(b):
+    #    a, b = random.randint(2 ** 1023, 2 ** 1024 - 1), random.randint(2 ** 1023, 2 ** 1024 - 1)
+    #q = a * b  # a very large prime
+    q = 79  # I tried a really small prime number for simplicity
     b = random.randint(2, q)
-    g = random.randint(2, q)
+    g = random.choice(cyclic_generator(q))
 
     while math.gcd(b, g) != 1:
         b = random.randint(2, q)
-        g = random.randint(2, q)
+        g = random.choice(cyclic_generator(q))
         if math.gcd(b, g) == 1:
             break
 
-    F_q = cyclic_generator(q)  # TODO: NEED TO FIX THIS...
     h = pow(g, b)
+
+    F_q = []
+    for i in range(q):
+        F_q.append(pow(g, i, q))
+
     public_key = (F_q, h, q, g)
 
     # Retaining private key (Bob)
