@@ -227,7 +227,7 @@ while True:
         print("INCOMING MESSAGE:", ascii(str_ptext))
 
         # deleting the server contents after decrypting an incoming message.
-        #open('server.txt', 'w').close()
+        open('server.txt', 'w').close()
 
         plaintext = input("ANSWER THE MESSAGE: ")
 
