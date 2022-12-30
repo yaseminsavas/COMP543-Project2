@@ -7,7 +7,6 @@ import random
 import math
 import os
 from time import sleep
-import time
 
 
 # helper function for ascii conversion
@@ -81,7 +80,7 @@ def elgamal_key_generator():
         a, b = random.randint(2 ** 1023, 2 ** 1024 - 1), random.randint(2 ** 1023, 2 ** 1024 - 1)
 
     q = a * b  # a very large prime
-    q = 79  # I tried a really small prime number for simplicity
+    #q = 79  # I tried a really small prime number for simplicity
     b = random.randint(2, q)
     g = random.randint(2, q)
 
