@@ -7,6 +7,7 @@ import random
 import math
 import os
 from time import sleep
+import base64
 
 
 # helper function for ascii conversion
@@ -158,10 +159,14 @@ def write_to_server(public_key, ciphertext, p):
         else:
             cipher += str(ciphertext[i])
 
+    message_in_bytes = cipher.encode("utf-8")  # Encode the message as a sequence of bytes
+    base64_bytes = base64.b64encode(message_in_bytes)  # Encode the bytes as a base64-encoded string
+    base64_cipher = base64_bytes.decode("utf-8")
+
     H = str("H:" + str(public_key[0]))
     Q = str("Q:" + str(public_key[1]))
     G = str("G:" + str(public_key[2]))
-    C = str("C:" + str(cipher))
+    C = str("C:" + base64_cipher)
     P = str("p:" + str(p))
 
     f = open("server.txt", "w")
@@ -218,6 +223,10 @@ while True:
             lines = f.readlines()
 
         H, Q, G, ciphertext, p = lines[0][2:], lines[1][2:], lines[2][2:], lines[3][2:], lines[4][2:]
+
+        base64_bytes = ciphertext.encode("utf-8")  # Encode the base64 message as a sequence of bytes
+        message_bytes = base64.b64decode(base64_bytes)  # Decode the base64-encoded bytes
+        ciphertext = message_bytes.decode("utf-8")
         ciphertext = ciphertext.split(",")
         plaintext = elgamal_decryption(int(p), int(Q), ciphertext)
 
